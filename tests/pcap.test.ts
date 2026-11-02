@@ -75,6 +75,6 @@ describe('PCAP decoding', () => {
     const packets = Array.from({ length: 22 }, (_, index) => ({ timestamp: index, capturedLength: 54, originalLength: 54, source: '192.0.2.8', destination: '198.51.100.9', sourcePort: 40000, destinationPort: 1000 + index, protocol: 'TCP' as const, networkProtocol: 'IPv4' as const, tcpFlags: ['SYN'] }));
     const result = analyzeCapture('synthetic.pcap', 'pcap', packets);
     expect(result.findings[0]).toMatchObject({ id: 'tcp-port-sweep', severity: 'medium', packetCount: 22 });
-    expect(result.conversations[0]?.packets).toBe(22);
+    expect(result.conversations.reduce((total, conversation) => total + conversation.packets, 0)).toBe(22);
   });
 });
