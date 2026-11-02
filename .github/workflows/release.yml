@@ -21,13 +21,14 @@ jobs:
         run: npm install
       - name: Build and test
         run: npm run check
-      - name: Build standalone Linux executable
+      - name: Build standalone binaries
         run: |
+          mkdir -p release
           npm install --no-save esbuild @yao-pkg/pkg
           npx esbuild dist/cli.js --bundle --platform=node --format=cjs --outfile=release/packetlens.cjs
           npx pkg release/packetlens.cjs --targets node20-linux-x64 --output release/PacketLens-linux-x64
-          cp release/PacketLens-linux-x64 release/PacketLens-linux.exe
-          chmod +x release/PacketLens-linux-x64 release/PacketLens-linux.exe
+          npx pkg release/packetlens.cjs --targets node20-win-x64 --output release/PacketLens-windows.exe
+          chmod +x release/PacketLens-linux-x64
       - name: Build Debian package
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -58,4 +59,4 @@ jobs:
           files: |
             release/packetlens_*_amd64.deb
             release/PacketLens-linux-x64
-            release/PacketLens-linux.exe
+            release/PacketLens-windows.exe
