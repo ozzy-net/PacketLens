@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+*.pcap
+*.pcapng
+.env
+.DS_Store
