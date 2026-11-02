@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build and test
+        run: npm run check
+      - name: Build standalone Linux executable
+        run: |
+          npm install --no-save esbuild @yao-pkg/pkg
+          npx esbuild dist/cli.js --bundle --platform=node --format=cjs --outfile=release/packetlens.cjs
+          npx pkg release/packetlens.cjs --targets node20-linux-x64 --output release/PacketLens-linux-x64
+          cp release/PacketLens-linux-x64 release/PacketLens-linux.exe
+          chmod +x release/PacketLens-linux-x64 release/PacketLens-linux.exe
+      - name: Build Debian package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" = "$GITHUB_REF_NAME" ]; then VERSION="$(node -p "require('./package.json').version")"; fi
+          ROOT="release/debroot"
+          mkdir -p "$ROOT/DEBIAN" "$ROOT/usr/lib/packetlens/dist" "$ROOT/usr/bin"
+          cp -r dist/. "$ROOT/usr/lib/packetlens/dist/"
+          cp package.json "$ROOT/usr/lib/packetlens/package.json"
+          cat > "$ROOT/DEBIAN/control" <<EOF
+          Package: packetlens
+          Version: $VERSION
+          Section: net
+          Priority: optional
+          Architecture: amd64
+          Depends: nodejs (>= 20)
+          Maintainer: PacketLens contributors
+          Description: PCAP and PCAPNG network traffic analyser
+           Analyses packet captures, summarises hosts and conversations, and reports explainable traffic heuristics.
+          EOF
+          printf '#!/bin/sh\nexec node /usr/lib/packetlens/dist/cli.js "$@"\n' > "$ROOT/usr/bin/packetlens"
+          chmod 0755 "$ROOT/usr/bin/packetlens"
+          dpkg-deb --root-owner-group --build "$ROOT" "release/packetlens_${VERSION}_amd64.deb"
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PacketLens ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release/packetlens_*_amd64.deb
+            release/PacketLens-linux-x64
+            release/PacketLens-linux.exe
